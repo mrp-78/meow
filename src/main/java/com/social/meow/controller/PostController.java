@@ -2,7 +2,9 @@ package com.social.meow.controller;
 
 import com.social.meow.model.Post;
 import com.social.meow.repository.PostRepository;
+import com.social.meow.service.PostService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,12 +19,12 @@ public class PostController {
 
     @Autowired
     PostRepository postRepository;
+    PostService postService;
 
     @GetMapping()
     public ResponseEntity<List<Post>> getAllPosts() {
         try {
-            List<Post> posts = new ArrayList<Post>();
-            postRepository.findAll().forEach(posts::add);
+            List<Post> posts = postService.getAllPosts();
 
             if (posts.isEmpty()) {
                 return new ResponseEntity<>(HttpStatus.NO_CONTENT);
@@ -30,28 +32,33 @@ public class PostController {
 
             return new ResponseEntity<>(posts, HttpStatus.OK);
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
+    @Cacheable(value = "posts", key = "#id")
     @GetMapping("/{id}")
     public ResponseEntity<Post> getTutorialById(@PathVariable("id") long id) {
-        Optional<Post> postData = postRepository.findById(id);
+        try {
+            Post post = postService.getPostById(id);
 
-        if (postData.isPresent()) {
-            return new ResponseEntity<>(postData.get(), HttpStatus.OK);
-        } else {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            if (post != null) {
+                return new ResponseEntity<>(post, HttpStatus.OK);
+            } else {
+                return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            }
+        } catch (Exception e) {
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @PostMapping()
     public ResponseEntity<Post> createPost(@RequestBody Post post) {
-        try {
-            Post _post = postRepository.save(post);
-            return new ResponseEntity<>(_post, HttpStatus.CREATED);
-        } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+        try{
+            Post savedPost =  postService.createPost(post);
+            return new ResponseEntity<>(savedPost, HttpStatus.CREATED);
+        } catch(Exception e){
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 

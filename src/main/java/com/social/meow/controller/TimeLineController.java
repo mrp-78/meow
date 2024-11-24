@@ -28,7 +28,8 @@ public class TimeLineController {
         try {
             List<Post> posts = new ArrayList<Post>();
             if(lastId != null) {
-
+                Pageable next10 = PageRequest.of(0, 10);
+                posts = postRepository.findByIdGreaterThanOrderByIdAsc(lastId, next10);
             }else{
                 Pageable first10 = PageRequest.of(0,10);
                 posts = postRepository.findAll(first10).getContent();
