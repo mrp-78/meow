@@ -14,11 +14,13 @@ import java.util.Optional;
 @Service
 public class PostService {
 
-    @Autowired
-    private PostRepository postRepository;
+    private final PostRepository postRepository;
+    private final CacheManager cacheManager;
 
-    @Autowired
-    private CacheManager cacheManager;
+    public PostService(PostRepository postRepository, CacheManager cacheManager) {
+        this.postRepository = postRepository;
+        this.cacheManager = cacheManager;
+    }
 
     public List<Post> getAllPosts() {
         return postRepository.findAll();
@@ -42,6 +44,7 @@ public class PostService {
         Post savedPost = postRepository.save(post);
         // Write-through caching: update cache after saving to the DB
         Cache cache = cacheManager.getCache("posts");
+
         if (cache != null) {
             cache.put(savedPost.getId(), savedPost);
         }

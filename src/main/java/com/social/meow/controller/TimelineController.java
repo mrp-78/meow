@@ -2,7 +2,6 @@ package com.social.meow.controller;
 
 import com.social.meow.model.Post;
 import com.social.meow.repository.PostRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -17,10 +16,13 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/timeline")
-public class TimeLineController {
+public class TimelineController {
 
-    @Autowired
-    PostRepository postRepository;
+    private final PostRepository postRepository;
+
+    public TimelineController(PostRepository postRepository) {
+        this.postRepository = postRepository;
+    }
 
     @GetMapping()
     public ResponseEntity<List<Post>> getAllPosts(

@@ -20,10 +20,11 @@ public class PostController {
     private static final Logger logger = LoggerFactory.getLogger(PostController.class);
 
 
-    @Autowired
-    PostRepository postRepository;
-    @Autowired
-    PostService postService;
+    private final PostService postService;
+
+    public PostController(PostService postService) {
+        this.postService = postService;
+    }
 
     @GetMapping()
     public ResponseEntity<List<Post>> getAllPosts() {
