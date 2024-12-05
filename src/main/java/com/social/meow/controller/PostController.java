@@ -41,7 +41,6 @@ public class PostController {
         }
     }
 
-    @Cacheable(value = "posts", key = "#id")
     @GetMapping("/{id}")
     public ResponseEntity<Post> getPostById(@PathVariable("id") long id) {
         try {
@@ -57,7 +56,6 @@ public class PostController {
         }
     }
 
-//    @CachePut(value = "posts", key = "#post.id")
     @PostMapping()
     public ResponseEntity<Post> createPost(@RequestBody Post post) {
         try{
