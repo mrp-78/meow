@@ -5,7 +5,6 @@ import com.social.meow.repository.PostRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -30,17 +29,8 @@ public class PostService {
     }
 
     public Post getPostById(long id) {
-        Cache cache = cacheManager.getCache("posts");
-        if (cache != null && cache.get(id) != null) {
-            return (Post) cache.get(id).get();
-        }
-
         Optional<Post> postData = postRepository.findById(id);
-        if (postData.isPresent()) {
-            cache.put(id, postData.get());
-            return postData.get();
-        }
-        return null;
+        return postData.orElse(null);
     }
 
     @CacheEvict(value = "timelineCache", key = "'first'")
