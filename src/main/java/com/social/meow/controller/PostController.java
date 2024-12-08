@@ -57,10 +57,10 @@ public class PostController {
 
     @PostMapping()
     public ResponseEntity<Post> createPost(@RequestBody Post post) {
-        try{
-            Post savedPost =  postService.createPost(post);
+        try {
+            Post savedPost = postService.createPost(post);
             return new ResponseEntity<>(savedPost, HttpStatus.CREATED);
-        } catch(Exception e){
+        } catch (Exception e) {
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -70,7 +70,7 @@ public class PostController {
         try {
             Post updatedPost = postService.updatePost(id, post);
             return new ResponseEntity<>(updatedPost, HttpStatus.CREATED);
-        } catch(Exception e){
+        } catch (Exception e) {
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }

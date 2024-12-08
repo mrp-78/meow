@@ -40,31 +40,22 @@ public class PostService {
         return postRepository.save(post);
     }
 
+    @CacheEvict(value = "timelineCache", key = "#id")
     public Post updatePost(long id, Post post) {
         Optional<Post> postData = postRepository.findById(id);
         if (postData.isPresent()) {
             Post existingPost = postData.get();
             existingPost.setText(post.getText());
             existingPost.setUserId(post.getUserId());
-            Post updatedPost = postRepository.save(existingPost);
 
-            Cache cache = cacheManager.getCache("posts");
-            if (cache != null) {
-                cache.put(updatedPost.getId(), updatedPost);
-            }
-
-            return updatedPost;
+            return postRepository.save(existingPost);
         }
         return null;
     }
-
+    // TODO invalidate all cache keys from id to id + timeline_page_size
+    @CacheEvict(value = "timelineCache", key = "#id")
     public void deletePost(long id) {
         postRepository.deleteById(id);
-        // Invalidate the cache for the deleted post
-        Cache cache = cacheManager.getCache("posts");
-        if (cache != null) {
-            cache.evict(id);
-        }
     }
 
     public List<Post> getPostsByLastId(Long lastId, int pageSize) {
