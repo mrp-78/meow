@@ -1,24 +1,21 @@
 package com.social.meow.service;
 
 import com.social.meow.model.Post;
-import com.social.meow.repository.PostRepository;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
-import java.awt.print.Pageable;
 import java.util.List;
 
 @Service
 public class TimelineService {
-    private final PostRepository postRepository;
+    private final PostService postService;
 
-    public TimelineService(PostRepository postRepository) {
-        this.postRepository = postRepository;
+    public TimelineService(PostService postService) {
+        this.postService = postService;
     }
 
-    @Cacheable(value = "posts", key = "#lastId != null ? #lastId.toString() : 'first'")
-    public List<Post> getFirst20Posts(Long lastId) {
-        return postRepository.findByIdGreaterThanOrderByIdAsc(lastId, PageRequest.of(0, 20));
+    @Cacheable(value = "timelineCache", key = "#lastId != null ? #lastId.toString() : 'first'")
+    public List<Post> getTimeline(Long lastId, int pageSize) {
+        return postService.getPostsByLastId(lastId, pageSize);
     }
 }

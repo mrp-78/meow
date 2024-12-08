@@ -4,6 +4,10 @@ import com.social.meow.model.Post;
 import com.social.meow.repository.PostRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.cache.Cache;
 
@@ -27,28 +31,13 @@ public class PostService {
     }
 
     public Post getPostById(long id) {
-        Cache cache = cacheManager.getCache("posts");
-        if (cache != null && cache.get(id) != null) {
-            return (Post) cache.get(id).get();
-        }
-
         Optional<Post> postData = postRepository.findById(id);
-        if (postData.isPresent()) {
-            cache.put(id, postData.get());
-            return postData.get();
-        }
-        return null;
+        return postData.orElse(null);
     }
 
+    @CacheEvict(value = "timelineCache", key = "'first'")
     public Post createPost(Post post) {
-        Post savedPost = postRepository.save(post);
-        // Write-through caching: update cache after saving to the DB
-        Cache cache = cacheManager.getCache("posts");
-
-        if (cache != null) {
-            cache.put(savedPost.getId(), savedPost);
-        }
-        return savedPost;
+        return postRepository.save(post);
     }
 
     public Post updatePost(long id, Post post) {
@@ -76,5 +65,13 @@ public class PostService {
         if (cache != null) {
             cache.evict(id);
         }
+    }
+
+    public List<Post> getPostsByLastId(Long lastId, int pageSize) {
+        Pageable pageable = PageRequest.of(0, pageSize, Sort.by("id").descending());
+        if (lastId == null) {
+            return postRepository.findAll(pageable).getContent();
+        }
+        return postRepository.findByIdLessThanOrderByIdDesc(lastId, pageable);
     }
 }
