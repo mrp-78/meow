@@ -12,18 +12,18 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/timeline")
-public class TimeLineController {
+public class TimelineController {
 
     private final TimelineService timelineService;
 
-    public TimeLineController(TimelineService timelineService) {
+    public TimelineController(TimelineService timelineService) {
         this.timelineService = timelineService;
     }
 
     @GetMapping
     public ResponseEntity<List<Post>> getTimeline(
             @RequestParam(value = "lastId", required = false) Long lastId
-            ) {
+    ) {
         List<Post> timeline = timelineService.getTimeline(lastId, 3);
         return ResponseEntity.ok(timeline);
     }
