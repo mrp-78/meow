@@ -2,27 +2,32 @@ package com.social.meow.controller;
 
 import com.social.meow.model.Post;
 import com.social.meow.repository.PostRepository;
+import com.social.meow.service.PostService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/v1/posts")
 public class PostController {
+    private static final Logger logger = LoggerFactory.getLogger(PostController.class);
 
-    @Autowired
-    PostRepository postRepository;
+
+    private final PostService postService;
+
+    public PostController(PostService postService) {
+        this.postService = postService;
+    }
 
     @GetMapping()
     public ResponseEntity<List<Post>> getAllPosts() {
         try {
-            List<Post> posts = new ArrayList<Post>();
-            postRepository.findAll().forEach(posts::add);
+            List<Post> posts = postService.getAllPosts();
 
             if (posts.isEmpty()) {
                 return new ResponseEntity<>(HttpStatus.NO_CONTENT);
@@ -30,49 +35,50 @@ public class PostController {
 
             return new ResponseEntity<>(posts, HttpStatus.OK);
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            logger.error(e.toString());
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Post> getTutorialById(@PathVariable("id") long id) {
-        Optional<Post> postData = postRepository.findById(id);
+    public ResponseEntity<Post> getPostById(@PathVariable("id") long id) {
+        try {
+            Post post = postService.getPostById(id);
 
-        if (postData.isPresent()) {
-            return new ResponseEntity<>(postData.get(), HttpStatus.OK);
-        } else {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            if (post != null) {
+                return new ResponseEntity<>(post, HttpStatus.OK);
+            } else {
+                return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            }
+        } catch (Exception e) {
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @PostMapping()
     public ResponseEntity<Post> createPost(@RequestBody Post post) {
         try {
-            Post _post = postRepository.save(post);
-            return new ResponseEntity<>(_post, HttpStatus.CREATED);
+            Post savedPost = postService.createPost(post);
+            return new ResponseEntity<>(savedPost, HttpStatus.CREATED);
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Post> updateTutorial(@PathVariable("id") long id, @RequestBody Post post) {
-        Optional<Post> postData = postRepository.findById(id);
-
-        if (postData.isPresent()) {
-            Post _post = postData.get();
-            _post.setText(post.getText());
-            _post.setUserId(post.getUserId());
-            return new ResponseEntity<>(postRepository.save(_post), HttpStatus.OK);
-        } else {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+    public ResponseEntity<Post> updatePost(@PathVariable("id") long id, @RequestBody Post post) {
+        try {
+            Post updatedPost = postService.updatePost(id, post);
+            return new ResponseEntity<>(updatedPost, HttpStatus.CREATED);
+        } catch (Exception e) {
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<HttpStatus> deleteTutorial(@PathVariable("id") long id) {
         try {
-            postRepository.deleteById(id);
+            postService.deletePost(id);
             return new ResponseEntity<>(HttpStatus.NO_CONTENT);
         } catch (Exception e) {
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
