@@ -9,7 +9,7 @@ import java.util.Date;
 @Service
 public class JwtService {
 
-    private final String secretKey = "your-secret-key"; // Use a strong secret key in production
+    private final String secretKey = "53675668597033733730A9792F423F452848284D6251655468576D5A71347437"; // Use a strong secret key in production
     private final long expirationTime = 86400000; // Token expiration time (24 hours)
 
     public String generateToken(String phoneNumber) {
