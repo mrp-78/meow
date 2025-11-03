@@ -1,5 +1,6 @@
 package com.social.meow.service;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -9,8 +10,10 @@ import java.util.Date;
 @Service
 public class JwtService {
 
-    private final String secretKey = "53675668597033733730A9792F423F452848284D6251655468576D5A71347437"; // Use a strong secret key in production
-    private final long expirationTime = 86400000; // Token expiration time (24 hours)
+    @Value("${jwt.secretKey}")
+    private String secretKey;
+    @Value("${jwt.expirationTime}")
+    private long expirationTime;
 
     public String generateToken(String phoneNumber) {
         return Jwts.builder()
