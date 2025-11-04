@@ -47,11 +47,11 @@ public class PostService {
     public Post createPost(Post post) {
         Post newPost = postRepository.save(post);
 
-        redisTemplate.executePipelined(new SessionCallback<String>() {
+        redisTemplate.executePipelined(new SessionCallback<Object>() {
             @Override
-            public <K, V> String execute(RedisOperations<K, V> operations) throws DataAccessException {
-                RedisOperations<String, String> opsTemplate = (RedisOperations<String, String>) operations;
-                ListOperations<String, String> listOps = opsTemplate.opsForList();
+            public <K, V> Object execute(RedisOperations<K, V> operations) throws DataAccessException {
+                RedisOperations<String, Object> opsTemplate = (RedisOperations<String, Object>) operations;
+                ListOperations<String, Object> listOps = opsTemplate.opsForList();
 
                 listOps.leftPush(cacheKey, Long.toString(newPost.getId()));
                 listOps.trim(cacheKey, 0, maxTimelineSize - 1);
