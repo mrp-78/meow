@@ -74,7 +74,12 @@ public class PostService {
             existingPost.setText(post.getText());
             existingPost.setUserId(post.getUserId());
 
-            return postRepository.save(existingPost);
+            Post savedPost = postRepository.save(existingPost);
+
+            if (postsCache != null) {
+                postsCache.put(savedPost.getId(), savedPost);
+            }
+            return savedPost;
         }
         return null;
     }
