@@ -1,10 +1,8 @@
 package com.social.meow.service;
 
-import com.social.meow.cache.CacheEvictRange;
 import com.social.meow.model.Post;
 import com.social.meow.repository.PostRepository;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -64,7 +62,6 @@ public class PostService {
         return newPost;
     }
 
-    @CacheEvict(value = "timelineCache", key = "#id")
     public Post updatePost(long id, Post post) {
         Optional<Post> postData = postRepository.findById(id);
         if (postData.isPresent()) {
@@ -77,9 +74,21 @@ public class PostService {
         return null;
     }
 
-    @CacheEvictRange(cacheName = "timelineCache", startKey = "#id", pageSize = "3")
     public void deletePost(long id) {
         postRepository.deleteById(id);
+
+        redisTemplate.executePipelined(new SessionCallback<Object>() {
+            @Override
+            public <K, V> Object execute(RedisOperations<K, V> operations) throws DataAccessException {
+                RedisOperations<String, Object> opsTemplate = (RedisOperations<String, Object>) operations;
+                ListOperations<String, Object> listOps = opsTemplate.opsForList();
+
+                listOps.remove(cacheKey, 0, Long.toString(id));
+                opsTemplate.expire(cacheKey, Duration.ofSeconds(ttlSeconds));
+
+                return null;
+            }
+        });
     }
 
     public List<Post> getPostsByLastId(Long lastId, int pageSize) {
