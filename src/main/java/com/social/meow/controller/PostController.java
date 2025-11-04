@@ -61,6 +61,7 @@ public class PostController {
             Post savedPost = postService.createPost(post);
             return new ResponseEntity<>(savedPost, HttpStatus.CREATED);
         } catch (Exception e) {
+            System.out.printf("Error: %s", e);
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }

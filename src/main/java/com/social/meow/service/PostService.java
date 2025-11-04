@@ -1,17 +1,17 @@
 package com.social.meow.service;
 
+import com.social.meow.cache.CacheEvictRange;
 import com.social.meow.model.Post;
 import com.social.meow.repository.PostRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.CacheManager;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.redis.core.*;
 import org.springframework.stereotype.Service;
-import org.springframework.cache.Cache;
-
-
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 
@@ -19,11 +19,20 @@ import java.util.Optional;
 public class PostService {
 
     private final PostRepository postRepository;
-    private final CacheManager cacheManager;
+    private final RedisTemplate<String, Object> redisTemplate;
 
-    public PostService(PostRepository postRepository, CacheManager cacheManager) {
+    @Value("${timeline.cache.key}")
+    private String cacheKey;
+
+    @Value("${timeline.cache.maxSize}")
+    private int maxTimelineSize;
+
+    @Value("${timeline.cache.ttlSeconds}")
+    private long ttlSeconds;
+
+    public PostService(PostRepository postRepository, RedisTemplate<String, Object> redisTemplate) {
         this.postRepository = postRepository;
-        this.cacheManager = cacheManager;
+        this.redisTemplate = redisTemplate;
     }
 
     public List<Post> getAllPosts() {
@@ -35,9 +44,24 @@ public class PostService {
         return postData.orElse(null);
     }
 
-    @CacheEvict(value = "timelineCache", key = "'first'")
     public Post createPost(Post post) {
-        return postRepository.save(post);
+        Post newPost = postRepository.save(post);
+
+        redisTemplate.executePipelined(new SessionCallback<String>() {
+            @Override
+            public <K, V> String execute(RedisOperations<K, V> operations) throws DataAccessException {
+                RedisOperations<String, String> opsTemplate = (RedisOperations<String, String>) operations;
+                ListOperations<String, String> listOps = opsTemplate.opsForList();
+
+                listOps.leftPush(cacheKey, Long.toString(newPost.getId()));
+                listOps.trim(cacheKey, 0, maxTimelineSize - 1);
+                opsTemplate.expire(cacheKey, Duration.ofSeconds(ttlSeconds));
+
+                return null;
+            }
+        });
+
+        return newPost;
     }
 
     @CacheEvict(value = "timelineCache", key = "#id")
@@ -52,8 +76,8 @@ public class PostService {
         }
         return null;
     }
-    // TODO invalidate all cache keys from id to id + timeline_page_size
-    @CacheEvict(value = "timelineCache", key = "#id")
+
+    @CacheEvictRange(cacheName = "timelineCache", startKey = "#id", pageSize = "3")
     public void deletePost(long id) {
         postRepository.deleteById(id);
     }
