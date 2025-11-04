@@ -3,13 +3,14 @@ package com.social.meow.service;
 import com.social.meow.model.Post;
 import com.social.meow.repository.PostRepository;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.redis.core.*;
 import org.springframework.stereotype.Service;
-import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 
@@ -18,19 +19,21 @@ public class PostService {
 
     private final PostRepository postRepository;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final Cache postsCache;
 
     @Value("${timeline.cache.key}")
-    private String cacheKey;
+    private String timelineCacheKey;
+
+    @Value("${post.cache.key}")
+    private String postCacheKey;
 
     @Value("${timeline.cache.maxSize}")
     private int maxTimelineSize;
 
-    @Value("${timeline.cache.ttlSeconds}")
-    private long ttlSeconds;
-
-    public PostService(PostRepository postRepository, RedisTemplate<String, Object> redisTemplate) {
+    public PostService(PostRepository postRepository, RedisTemplate<String, Object> redisTemplate, CacheManager cacheManager) {
         this.postRepository = postRepository;
         this.redisTemplate = redisTemplate;
+        this.postsCache = cacheManager.getCache(postCacheKey);
     }
 
     public List<Post> getAllPosts() {
@@ -43,23 +46,25 @@ public class PostService {
     }
 
     public Post createPost(Post post) {
-        Post newPost = postRepository.save(post);
+        Post savedPost = postRepository.save(post);
 
+        if (postsCache != null) {
+            postsCache.put(savedPost.getId(), savedPost);
+        }
         redisTemplate.executePipelined(new SessionCallback<Object>() {
             @Override
             public <K, V> Object execute(RedisOperations<K, V> operations) throws DataAccessException {
                 RedisOperations<String, Object> opsTemplate = (RedisOperations<String, Object>) operations;
                 ListOperations<String, Object> listOps = opsTemplate.opsForList();
 
-                listOps.leftPush(cacheKey, Long.toString(newPost.getId()));
-                listOps.trim(cacheKey, 0, maxTimelineSize - 1);
-                opsTemplate.expire(cacheKey, Duration.ofSeconds(ttlSeconds));
+                listOps.leftPush(timelineCacheKey, savedPost.getId());
+                listOps.trim(timelineCacheKey, 0, maxTimelineSize - 1);
 
                 return null;
             }
         });
 
-        return newPost;
+        return savedPost;
     }
 
     public Post updatePost(long id, Post post) {
@@ -77,14 +82,16 @@ public class PostService {
     public void deletePost(long id) {
         postRepository.deleteById(id);
 
+        if (postsCache != null) {
+            postsCache.evict(id);
+        }
         redisTemplate.executePipelined(new SessionCallback<Object>() {
             @Override
             public <K, V> Object execute(RedisOperations<K, V> operations) throws DataAccessException {
                 RedisOperations<String, Object> opsTemplate = (RedisOperations<String, Object>) operations;
                 ListOperations<String, Object> listOps = opsTemplate.opsForList();
 
-                listOps.remove(cacheKey, 0, Long.toString(id));
-                opsTemplate.expire(cacheKey, Duration.ofSeconds(ttlSeconds));
+                listOps.remove(timelineCacheKey, 0, id);
 
                 return null;
             }
