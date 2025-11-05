@@ -21,10 +21,10 @@ public class TimelineController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Long>> getTimeline(
+    public ResponseEntity<List<Post>> getTimeline(
             @RequestParam(value = "lastId", required = false) Long lastId
     ) {
-        List<Long> timeline = timelineService.getTimeline(lastId, 3);
+        List<Post> timeline = timelineService.getTimeline(lastId, 3);
         return ResponseEntity.ok(timeline);
     }
 }

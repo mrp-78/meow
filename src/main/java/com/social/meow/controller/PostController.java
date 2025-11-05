@@ -1,11 +1,9 @@
 package com.social.meow.controller;
 
 import com.social.meow.model.Post;
-import com.social.meow.repository.PostRepository;
 import com.social.meow.service.PostService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,8 +14,6 @@ import java.util.List;
 @RequestMapping("/api/v1/posts")
 public class PostController {
     private static final Logger logger = LoggerFactory.getLogger(PostController.class);
-
-
     private final PostService postService;
 
     public PostController(PostService postService) {

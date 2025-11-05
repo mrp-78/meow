@@ -11,15 +11,16 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.redis.core.*;
 import org.springframework.stereotype.Service;
-import java.util.List;
-import java.util.Optional;
+
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class PostService {
 
     private final PostRepository postRepository;
     private final RedisTemplate<String, Object> redisTemplate;
-    private final Cache postsCache;
+    private final CacheManager cacheManager;
 
     @Value("${timeline.cache.key}")
     private String timelineCacheKey;
@@ -33,7 +34,7 @@ public class PostService {
     public PostService(PostRepository postRepository, RedisTemplate<String, Object> redisTemplate, CacheManager cacheManager) {
         this.postRepository = postRepository;
         this.redisTemplate = redisTemplate;
-        this.postsCache = cacheManager.getCache(postCacheKey);
+        this.cacheManager = cacheManager;
     }
 
     public List<Post> getAllPosts() {
@@ -47,6 +48,7 @@ public class PostService {
 
     public Post createPost(Post post) {
         Post savedPost = postRepository.save(post);
+        Cache postsCache = cacheManager.getCache(postCacheKey);
 
         if (postsCache != null) {
             postsCache.put(savedPost.getId(), savedPost);
@@ -75,7 +77,7 @@ public class PostService {
             existingPost.setUserId(post.getUserId());
 
             Post savedPost = postRepository.save(existingPost);
-
+            Cache postsCache = cacheManager.getCache(postCacheKey);
             if (postsCache != null) {
                 postsCache.put(savedPost.getId(), savedPost);
             }
@@ -86,7 +88,7 @@ public class PostService {
 
     public void deletePost(long id) {
         postRepository.deleteById(id);
-
+        Cache postsCache = cacheManager.getCache(postCacheKey);
         if (postsCache != null) {
             postsCache.evict(id);
         }
@@ -109,5 +111,42 @@ public class PostService {
             return postRepository.findAll(pageable).getContent();
         }
         return postRepository.findByIdLessThanOrderByIdDesc(lastId, pageable);
+    }
+
+    public List<Post> getPostsById(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        Cache postsCache = cacheManager.getCache(postCacheKey);
+        Map<Long, Post> result = new LinkedHashMap<>();
+        List<Long> missedIds = new ArrayList<>();
+
+        for (Long id : ids) {
+            Post cached = postsCache != null ? postsCache.get(id, Post.class) : null;
+            if (cached != null) {
+                result.put(id, cached);
+            } else {
+                missedIds.add(id);
+            }
+        }
+
+        if (!missedIds.isEmpty()) {
+            List<Post> dbPosts = postRepository.findAllById(missedIds);
+
+            if (postsCache != null) {
+                for (Post post : dbPosts) {
+                    postsCache.put(post.getId(), post);
+                    result.put(post.getId(), post);
+                }
+            } else {
+                dbPosts.forEach(p -> result.put(p.getId(), p));
+            }
+        }
+
+        return ids.stream()
+                .map(result::get)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
     }
 }

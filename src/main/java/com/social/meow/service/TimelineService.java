@@ -24,15 +24,13 @@ public class TimelineService {
         this.redisTemplate = redisTemplate;
     }
 
-    public List<Long> getTimeline(Long lastId, int pageSize) {
+    public List<Post> getTimeline(Long lastId, int pageSize) {
         ListOperations<String, Object> listOps = redisTemplate.opsForList();
         List<Object> cachedIds = listOps.range(cacheKey, 0, -1);
 
         if (cachedIds == null || cachedIds.isEmpty()) {
-            // Cache miss: load from DB
             List<Post> posts = postService.getPostsByLastId(lastId, pageSize);
-//            return posts;
-            return Collections.emptyList();
+            return posts;
         }
 
         List<Long> ids = cachedIds.stream()
@@ -44,28 +42,14 @@ public class TimelineService {
         if (lastId != null) {
             int lastIndex = ids.indexOf(lastId);
             if (lastIndex == -1) {
-                // Not found in cache → fallback to DB
-                return Collections.emptyList();
-//                return postService.getPostsByLastId(lastId, pageSize);
+                return postService.getPostsByLastId(lastId, pageSize);
             }
             startIndex = lastIndex + 1;
         }
 
         int endIndex = Math.min(startIndex + pageSize, ids.size());
         List<Long> pageIds = ids.subList(startIndex, endIndex);
-        return pageIds;
-
-        // Fetch posts from DB by IDs (ensure order)
-//        List<Post> posts = postRepository.findAllById(pageIds);
-
-        // Preserve Redis order (descending by time)
-//        Map<Long, Post> postMap = posts.stream()
-//                .collect(Collectors.toMap(Post::getId, p -> p));
-//        List<Post> ordered = pageIds.stream()
-//                .map(postMap::get)
-//                .filter(Objects::nonNull)
-//                .collect(Collectors.toList());
-
-//        return ordered;
+        List<Post> posts = postService.getPostsById(pageIds);
+        return posts;
     }
 }
