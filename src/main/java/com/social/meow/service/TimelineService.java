@@ -2,12 +2,10 @@ package com.social.meow.service;
 
 import com.social.meow.model.Post;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.redis.core.ListOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -29,7 +27,7 @@ public class TimelineService {
         List<Object> cachedIds = listOps.range(cacheKey, 0, -1);
 
         if (cachedIds == null || cachedIds.isEmpty()) {
-            List<Post> posts = postService.getPostsByLastId(lastId, pageSize);
+            List<Post> posts = postService.getPostsByLastIdAndPageSize(lastId, pageSize);
             return posts;
         }
 
@@ -42,14 +40,14 @@ public class TimelineService {
         if (lastId != null) {
             int lastIndex = ids.indexOf(lastId);
             if (lastIndex == -1) {
-                return postService.getPostsByLastId(lastId, pageSize);
+                return postService.getPostsByLastIdAndPageSize(lastId, pageSize);
             }
             startIndex = lastIndex + 1;
         }
 
         int endIndex = Math.min(startIndex + pageSize, ids.size());
         List<Long> pageIds = ids.subList(startIndex, endIndex);
-        List<Post> posts = postService.getPostsById(pageIds);
+        List<Post> posts = postService.getPostsByIds(pageIds);
         return posts;
     }
 }

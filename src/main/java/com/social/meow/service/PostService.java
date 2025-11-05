@@ -48,11 +48,6 @@ public class PostService {
 
     public Post createPost(Post post) {
         Post savedPost = postRepository.save(post);
-        Cache postsCache = cacheManager.getCache(postCacheKey);
-
-        if (postsCache != null) {
-            postsCache.put(savedPost.getId(), savedPost);
-        }
         redisTemplate.executePipelined(new SessionCallback<Object>() {
             @Override
             public <K, V> Object execute(RedisOperations<K, V> operations) throws DataAccessException {
@@ -79,7 +74,7 @@ public class PostService {
             Post savedPost = postRepository.save(existingPost);
             Cache postsCache = cacheManager.getCache(postCacheKey);
             if (postsCache != null) {
-                postsCache.put(savedPost.getId(), savedPost);
+                postsCache.evict(savedPost.getId());
             }
             return savedPost;
         }
@@ -105,15 +100,25 @@ public class PostService {
         });
     }
 
-    public List<Post> getPostsByLastId(Long lastId, int pageSize) {
+    public List<Post> getPostsByLastIdAndPageSize(Long lastId, int pageSize) {
         Pageable pageable = PageRequest.of(0, pageSize, Sort.by("id").descending());
+        Cache postsCache = cacheManager.getCache(postCacheKey);
+        List<Post> posts;
         if (lastId == null) {
-            return postRepository.findAll(pageable).getContent();
+            posts = postRepository.findAll(pageable).getContent();
         }
-        return postRepository.findByIdLessThanOrderByIdDesc(lastId, pageable);
+        else {
+            posts = postRepository.findByIdLessThanOrderByIdDesc(lastId, pageable);
+        }
+        if (postsCache != null) {
+            for (Post post : posts) {
+                postsCache.put(post.getId(), post);
+            }
+        }
+        return posts;
     }
 
-    public List<Post> getPostsById(List<Long> ids) {
+    public List<Post> getPostsByIds(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             return Collections.emptyList();
         }
